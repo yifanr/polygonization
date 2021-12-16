@@ -66,28 +66,12 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     return res_image
 
 
-def BowyerWatson(oldTriangulation, points, newpoints):
-    triangulation = oldTriangulation.copy()
-    superpoints = np.array([[0, 0], [1000, 0], [0, 1000]])
-    points = np.concat(points, newpoints, superpoints)
-    triangulation.append([-1, -2, -3])
-    for i in range(points.shape[0]):
-        point = points[i]
-        badTriangles = []
-        for triangle in triangulation:
-            pass
-    return triangulation
-
-
 def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: float) -> Tuple[np.ndarray, np.ndarray]:
     """Performs Delaunay triangulation on a segmented (clustered) image."""
     # Edge detection on res
     res = filters.sobel(rgb2gray(clustered_img))
     res[res > 0.1] = 1
     res[res <= 0.1] = 0
-
-    plt.imshow(res, cmap='gray')
-    plt.show()
 
     # Select a random subset of edge points
     j, i = np.nonzero(res)

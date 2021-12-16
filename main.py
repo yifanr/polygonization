@@ -28,14 +28,16 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """Interprets arguments and begins polygonization."""
+    CLUSTERS = 10
+
     args = parse_args()
 
-    polygonize(args.data)
+    polygonize(args.data, CLUSTERS)
 
-    # Placeholder: read and display args.data
-    img = io.imread(args.data)
-    io.imshow(img)
-    plt.show()
+    # # Placeholder: read and display args.data
+    # img = io.imread(args.data)
+    # io.imshow(img)
+    # plt.show()
 
     return
 

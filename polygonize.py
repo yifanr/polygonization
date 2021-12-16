@@ -1,15 +1,20 @@
+from typing import Tuple
+
 import matplotlib.pyplot as plt
 import numpy as np
-from skimage import img_as_float32, io
+from scipy.spatial import Delaunay
+from skimage import filters, img_as_float32, io
+from skimage.color import rgb2gray
+from skimage.feature.orb import ORB
+from skimage.feature.peak import peak_local_max
 from sklearn.cluster import MiniBatchKMeans
-from skimage import filters
 
 
-def plot_clusters(img: np.ndarray) -> np.ndarray:
+def cluster_img(img: np.ndarray, clusters: int) -> Tuple[np.ndarray, np.ndarray]:
     """Form clusters from an input image"""
     # Initialize kmeans model
     kmeans = MiniBatchKMeans(
-        n_clusters=10,
+        n_clusters=clusters,
         max_iter=50,
         batch_size=1024,  # try 2560
         tol=0.0,
@@ -17,12 +22,12 @@ def plot_clusters(img: np.ndarray) -> np.ndarray:
     )
 
     # Weights
-    COLOR_WEIGHT = 1
-    INTENSITY_WEIGHT = 1 / 1.5
-    POSITION_WEIGHT = 2.5
+    COLOR_WEIGHT = 1.5
+    INTENSITY_WEIGHT = 1
+    POSITION_WEIGHT = 3
 
     # Apply Gaussian blur to image
-    img = filters.gaussian(img, sigma=2, multichannel=True)
+    img = filters.gaussian(img, sigma=7, multichannel=True)
 
     # Calculate features
     color_mean = np.mean(img)
@@ -53,9 +58,52 @@ def plot_clusters(img: np.ndarray) -> np.ndarray:
 
     # plt.show()
 
-    return res_image
+    return res_image, kmeans.labels_
 
 
-def polygonize(path: str) -> None:
-    clustered_image = plot_clusters(img_as_float32(io.imread(path)))
-     
+def polygonize(path: str, clusters: int) -> None:
+    # Clustering on original image
+    img = img_as_float32(io.imread(path))
+    res, labels = cluster_img(img, clusters)
+    labels = np.reshape(labels, img.shape[0: 2])
+
+    # ORB feature detector
+    orb = ORB(
+        n_keypoints=50,
+        harris_k=0.4
+    )
+
+    # Triangulate each cluster individually
+    for cluster in range(0, clusters):
+        print("Triangulating cluster %d out of %d", cluster, clusters)
+
+        current_cluster = rgb2gray(res)
+        current_cluster[labels == cluster] = 1
+        current_cluster[labels != cluster] = 0
+
+        current_cluster = filters.sobel(current_cluster)
+
+        current_cluster[current_cluster > 0.1] = 1
+        current_cluster[current_cluster <= 0.1] = 0
+
+        plt.imshow(current_cluster, cmap='gray')
+        plt.show()
+
+        j, i = np.nonzero(current_cluster)
+        PERCENT_TO_SELECT = 0.005
+        selected_indices = np.random.choice(len(i), int(
+            np.floor(PERCENT_TO_SELECT * len(i))), replace=False)
+
+        i = i[selected_indices]
+        j = j[selected_indices]
+
+        points = np.concatenate([i[:, None], j[:, None]], axis=1) 
+
+        # Delaunay
+        tri = Delaunay(points)
+
+        plt.triplot(points[:, 0], points[:, 1], tri.simplices)
+        plt.plot(points[:, 0], points[:, 1], 'o')
+
+    plt.imshow(res)
+    plt.show()

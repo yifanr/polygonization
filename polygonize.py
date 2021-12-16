@@ -18,7 +18,7 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     # Initialize kmeans model
     kmeans = MiniBatchKMeans(
         n_clusters=clusters,
-        max_iter=1,
+        max_iter=50,
         batch_size=2560,
         tol=0.0,
         max_no_improvement=5
@@ -83,6 +83,9 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: f
     res = filters.sobel(rgb2gray(clustered_img))
     res[res > 0.1] = 1
     res[res <= 0.1] = 0
+
+    plt.imshow(res, cmap='gray')
+    plt.show()
 
     # Select a random subset of edge points
     j, i = np.nonzero(res)

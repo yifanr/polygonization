@@ -2,7 +2,7 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import Delaunay
-from skimage import filters, img_as_float32, io
+from skimage import filters, img_as_float32, io, draw
 from skimage.color import rgb2gray
 from sklearn.cluster import MiniBatchKMeans
 
@@ -55,7 +55,7 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
 
     # plt.show()
 
-    return res_image, kmeans.labels_
+    return res_image
 
 def BowyerWatson (oldTriangulation, points, newpoints):
     triangulation = oldTriangulation.copy()
@@ -94,13 +94,13 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray) -> Tuple[np
     width = original_img.shape[1]  # i
 
     top_border_points_j = np.zeros(width // STEP + 1)
-    top_border_points_i = np.arange(0, width, STEP)
-    bottom_border_points_j = np.full(width // STEP + 1, height)
-    bottom_border_points_i = np.arange(0, width, STEP)
-    left_border_points_j = np.arange(0, height, STEP)
+    top_border_points_i = np.arange(0, width-1, STEP)
+    bottom_border_points_j = np.full(width // STEP + 1, height-1)
+    bottom_border_points_i = np.arange(0, width-1, STEP)
+    left_border_points_j = np.arange(0, height-1, STEP)
     left_border_points_i = np.zeros(height // STEP + 1)
-    right_border_points_j = np.arange(0, height, STEP)
-    right_border_points_i = np.full(height // STEP + 1, width)
+    right_border_points_j = np.arange(0, height-1, STEP)
+    right_border_points_i = np.full(height // STEP + 1, width-1)
 
     j = np.concatenate(
         [
@@ -140,9 +140,14 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray) -> Tuple[np
 
 def visualize(img: np.ndarray, points: np.ndarray, simplices: np.ndarray) -> None:
     """Perform shading of triangulation and visualize results."""
-    # Plot triangles
-    plt.tripcolor()
-      
+    colors = []
+    for i in range(len(simplices)):
+        triangle = points[simplices[i]]
+        pixels = img[draw.polygon(triangle[:,1], triangle[:,0])]
+        color = np.average(pixels, 0)
+        img[draw.polygon(triangle[:,1], triangle[:,0])] = color
+    plt.imshow(img)
+    plt.show()
 
 def polygonize(path: str, clusters: int) -> None:
     """Polygonize a specified image with a specified number of clusters for segmentation."""

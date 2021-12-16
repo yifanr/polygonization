@@ -60,6 +60,17 @@ def cluster_img(img: np.ndarray, clusters: int) -> Tuple[np.ndarray, np.ndarray]
 
     return res_image, kmeans.labels_
 
+def BowyerWatson (oldTriangulation, points, newpoints):
+    triangulation = oldTriangulation.copy()
+    superpoints = np.array([[0,0],[1000,0],[0,1000]])
+    points = np.concat(points,newpoints,superpoints)
+    triangulation.append([-1,-2,-3])
+    for i in range(points.shape[0]):
+        point = points[i]
+        badTriangles = []
+        for triangle in triangulation:
+
+    return triangulation
 
 def polygonize(path: str, clusters: int) -> None:
     # Clustering on original image

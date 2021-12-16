@@ -6,6 +6,7 @@ from skimage import filters, img_as_float32, io, draw, img_as_ubyte
 from skimage.color import rgb2gray
 from sklearn.cluster import MiniBatchKMeans
 import os
+import re
 
 
 def save_image(path, im):
@@ -177,4 +178,4 @@ def polygonize(path: str, clusters: int) -> None:
 
     # Visualize
     result = visualize(img, points, simplices)
-    save_image("results" + os.sep + str.rsplit(path, sep=os.sep, maxsplit=1)[1], result)
+    save_image("results" + os.sep + re.split(('/|\\\\'),path)[-1], result)

@@ -27,10 +27,12 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     # Weights
     COLOR_WEIGHT = 1.5
     INTENSITY_WEIGHT = 1
-    POSITION_WEIGHT = 2
+    POSITION_WEIGHT = 1.2
+
+    s = img.size/8000000
 
     # Apply Gaussian blur to image
-    img = filters.gaussian(img, sigma=3, multichannel=True)
+    img = filters.gaussian(img, sigma=s, multichannel=True)
 
     # Calculate features
     color_mean = np.mean(img)
@@ -55,11 +57,11 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     res_image = np.reshape(res_image, img.shape) * color_mean / COLOR_WEIGHT
 
     # # Plot to subplots
-    # f, axes = plt.subplots(1, 2)
-    # axes[0].imshow(img * color_mean)
-    # axes[1].imshow(res_image)
+    f, axes = plt.subplots(1, 2)
+    axes[0].imshow(img * color_mean)
+    axes[1].imshow(res_image)
 
-    # plt.show()
+    plt.show()
 
     return res_image
 

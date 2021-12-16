@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import Delaunay
 from skimage import filters, img_as_float32, io, draw, img_as_ubyte
-from skimage.color import rgb2gray
+from skimage.color import rgb2gray, rgba2rgb
 from sklearn.cluster import MiniBatchKMeans
 import os
 import re
@@ -11,6 +11,7 @@ import re
 
 def save_image(path, im):
     return io.imsave(path, img_as_ubyte(im.copy()))
+
 
 def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     """Form clusters from an input image"""
@@ -62,11 +63,12 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
 
     return res_image
 
-def BowyerWatson (oldTriangulation, points, newpoints):
+
+def BowyerWatson(oldTriangulation, points, newpoints):
     triangulation = oldTriangulation.copy()
-    superpoints = np.array([[0,0],[1000,0],[0,1000]])
-    points = np.concat(points,newpoints,superpoints)
-    triangulation.append([-1,-2,-3])
+    superpoints = np.array([[0, 0], [1000, 0], [0, 1000]])
+    points = np.concat(points, newpoints, superpoints)
+    triangulation.append([-1, -2, -3])
     for i in range(points.shape[0]):
         point = points[i]
         badTriangles = []
@@ -75,7 +77,7 @@ def BowyerWatson (oldTriangulation, points, newpoints):
     return triangulation
 
 
-def triangulate(original_img: np.ndarray, clustered_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: float) -> Tuple[np.ndarray, np.ndarray]:
     """Performs Delaunay triangulation on a segmented (clustered) image."""
     # Edge detection on res
     res = filters.sobel(rgb2gray(clustered_img))
@@ -84,34 +86,33 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray) -> Tuple[np
 
     # Select a random subset of edge points
     j, i = np.nonzero(res)
-    PERCENT_TO_SELECT = 0.01
     selected_indices = np.random.choice(len(i), int(
-        np.floor(PERCENT_TO_SELECT * len(i))), replace=False)
+        np.floor(vertices * len(i))), replace=False)
 
     i = i[selected_indices]
     j = j[selected_indices]
 
     # Add image border points
-    print(j)
-
-
     height = original_img.shape[0]  # j
     width = original_img.shape[1]  # i
-    
+
     numDiv = 40
     top_border_points_i = []
     bottom_border_points_i = []
     left_border_points_j = []
     right_border_points_j = []
+
     for k in range(numDiv+1):
         top_border_points_i.append((int)((k/numDiv)*(width-1)))
         bottom_border_points_i.append((int)((k/numDiv)*(width-1)))
         left_border_points_j.append((int)((k/numDiv)*(height-1)))
         right_border_points_j.append((int)((k/numDiv)*(height-1)))
+
     top_border_points_i = np.array(top_border_points_i)
     bottom_border_points_i = np.array(bottom_border_points_i)
     left_border_points_j = np.array(left_border_points_j)
     right_border_points_j = np.array(right_border_points_j)
+
     top_border_points_j = np.zeros(numDiv+1)
     bottom_border_points_j = np.full(numDiv+1, height-1)
     left_border_points_i = np.zeros(numDiv+1)
@@ -127,7 +128,6 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray) -> Tuple[np
         ],
         axis=0
     )
-    print(j.shape)
 
     i = np.concatenate(
         [
@@ -139,7 +139,6 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray) -> Tuple[np
         ],
         axis=0
     )
-    print(i.shape)
 
     points = np.concatenate([i[:, None], j[:, None]], axis=1)
 
@@ -150,32 +149,48 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray) -> Tuple[np
     plt.plot(points[:, 0], points[:, 1], 'o')
 
     plt.imshow(original_img)
-    plt.show()
+    # plt.show()
 
     return points, tri.simplices
 
 
 def visualize(img: np.ndarray, points: np.ndarray, simplices: np.ndarray) -> None:
     """Perform shading of triangulation and visualize results."""
-    colors = []
     for i in range(len(simplices)):
         triangle = points[simplices[i]]
-        pixels = img[draw.polygon(triangle[:,1], triangle[:,0])]
+        pixels = img[draw.polygon(triangle[:, 1], triangle[:, 0])]
         color = np.average(pixels, 0)
-        img[draw.polygon(triangle[:,1], triangle[:,0])] = color
-    plt.imshow(img)
-    plt.show()
+        img[draw.polygon(triangle[:, 1], triangle[:, 0])] = color
+
     return img
 
-def polygonize(path: str, clusters: int) -> None:
+
+def polygonize(path: str, clusters: int, vertices: float) -> np.ndarray:
     """Polygonize a specified image with a specified number of clusters for segmentation."""
+    # Convert to RGB
+    img = io.imread(path)
+    channels = img.shape[2]
+    if (channels == 1):
+        print("Error: only color images are supported")
+        return
+    elif (channels == 3):
+        print("Detected RGB image")
+    elif (channels == 4):
+        print("Detected RGBA image, converting to RGB")
+        img = rgba2rgb(img)
+    else:
+        print("Error: unknown image format")
+        return
+
     # Clustering on original image
-    img = img_as_float32(io.imread(path))
+    img = img_as_float32(img)
     res = cluster_img(img, clusters)
 
     # Delaunay triangulation
-    points, simplices = triangulate(img, res)
+    points, simplices = triangulate(img, res, vertices)
 
     # Visualize
     result = visualize(img, points, simplices)
-    save_image("results" + os.sep + re.split(('/|\\\\'),path)[-1], result)
+    save_image("results" + os.sep + re.split(('/|\\\\'), path)[-1], result)
+
+    return result

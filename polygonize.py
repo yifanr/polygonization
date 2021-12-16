@@ -1,15 +1,17 @@
+import os
+import re
 from typing import Tuple
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import Delaunay
-from skimage import filters, img_as_float32, io, draw, img_as_ubyte
+from skimage import draw, filters, img_as_float32, img_as_ubyte, io
 from skimage.color import rgb2gray, rgba2rgb
 from sklearn.cluster import MiniBatchKMeans
-import os
-import re
 
 
 def save_image(path, im):
+    """Save an image."""
     return io.imsave(path, img_as_ubyte(im.copy()))
 
 
@@ -51,17 +53,15 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
 
     print("Model fit")
 
-    # res_image = kmeans.cluster_centers_[
-    #   kmeans.labels_][:, 0:3].reshape(img.shape) * color_mean
     res_image = kmeans.cluster_centers_[kmeans.labels_][:, 0:3]
     res_image = np.reshape(res_image, img.shape) * color_mean / COLOR_WEIGHT
 
     # # Plot to subplots
-    f, axes = plt.subplots(1, 2)
-    axes[0].imshow(img * color_mean)
-    axes[1].imshow(res_image)
+    # f, axes = plt.subplots(1, 2)
+    # axes[0].imshow(img * color_mean)
+    # axes[1].imshow(res_image)
 
-    plt.show()
+    # plt.show()
 
     return res_image
 
@@ -154,7 +154,6 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: f
     plt.plot(points[:, 0], points[:, 1], 'o')
 
     plt.imshow(original_img)
-    # plt.show()
 
     return points, tri.simplices
 

@@ -12,7 +12,7 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     # Initialize kmeans model
     kmeans = MiniBatchKMeans(
         n_clusters=clusters,
-        max_iter=50,
+        max_iter=1,
         batch_size=2560,
         tol=0.0,
         max_no_improvement=5
@@ -123,10 +123,14 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray) -> Tuple[np
     plt.imshow(original_img)
     plt.show()
 
+    return points, tri.simplices
+
 
 def visualize(img: np.ndarray, points: np.ndarray, simplices: np.ndarray) -> None:
     """Perform shading of triangulation and visualize results."""
-
+    # Plot triangles
+    plt.tripcolor()
+      
 
 def polygonize(path: str, clusters: int) -> None:
     """Polygonize a specified image with a specified number of clusters for segmentation."""

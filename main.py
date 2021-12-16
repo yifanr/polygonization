@@ -1,8 +1,11 @@
 import argparse
-from skimage import io
 import os
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
+from skimage import io
+
+from polygonize import polygonize
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,15 +28,16 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """Interprets arguments and begins polygonization."""
-    args = parse_args() 
-    
+    args = parse_args()
+
+    polygonize(args.data)
+
     # Placeholder: read and display args.data
     img = io.imread(args.data)
     io.imshow(img)
     plt.show()
 
     return
-    
 
 
 if __name__ == "__main__":

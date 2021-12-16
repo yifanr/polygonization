@@ -1,3 +1,4 @@
+from typing import Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import Delaunay
@@ -57,13 +58,10 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     return res_image
 
 
-def polygonize(path: str, clusters: int) -> None:
-    # Clustering on original image
-    img = img_as_float32(io.imread(path))
-    res = cluster_img(img, clusters)
-
+def triangulate(original_img: np.ndarray, clustered_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Performs Delaunay triangulation on a segmented (clustered) image."""
     # Edge detection on res
-    res = filters.sobel(rgb2gray(res))
+    res = filters.sobel(rgb2gray(clustered_img))
     res[res > 0.1] = 1
     res[res <= 0.1] = 0
 
@@ -80,8 +78,8 @@ def polygonize(path: str, clusters: int) -> None:
     print(j)
 
     STEP = 50
-    height = img.shape[0]  # j
-    width = img.shape[1]  # i
+    height = original_img.shape[0]  # j
+    width = original_img.shape[1]  # i
 
     top_border_points_j = np.zeros(width // STEP + 1)
     top_border_points_i = np.arange(0, width, STEP)
@@ -122,5 +120,22 @@ def polygonize(path: str, clusters: int) -> None:
     plt.triplot(points[:, 0], points[:, 1], tri.simplices)
     plt.plot(points[:, 0], points[:, 1], 'o')
 
-    plt.imshow(img)
+    plt.imshow(original_img)
     plt.show()
+
+
+def visualize(img: np.ndarray, points: np.ndarray, simplices: np.ndarray) -> None:
+    """Perform shading of triangulation and visualize results."""
+
+
+def polygonize(path: str, clusters: int) -> None:
+    """Polygonize a specified image with a specified number of clusters for segmentation."""
+    # Clustering on original image
+    img = img_as_float32(io.imread(path))
+    res = cluster_img(img, clusters)
+
+    # Delaunay triangulation
+    points, simplices = triangulate(img, res)
+
+    # Visualize
+    visualize(img, points, simplices)

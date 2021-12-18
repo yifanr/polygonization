@@ -1,6 +1,7 @@
 from typing import Tuple
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.lib.npyio import save
 from scipy.spatial import Delaunay
 from skimage import filters, img_as_float32, io, draw, img_as_ubyte
 from skimage.color import rgb2gray, rgba2rgb
@@ -26,10 +27,10 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
 
     # Weights
     COLOR_WEIGHT = 1.5
-    INTENSITY_WEIGHT = 1
+    INTENSITY_WEIGHT = 1.2
     POSITION_WEIGHT = 1.2
 
-    s = img.size/8000000
+    s = img.size/120000000
 
     # Apply Gaussian blur to image
     img = filters.gaussian(img, sigma=s, multichannel=True)
@@ -62,6 +63,7 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     axes[1].imshow(res_image)
 
     plt.show()
+    save_image("results" + os.sep + "kmeans.jpg", res_image)
 
     return res_image
 
@@ -151,7 +153,7 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: f
     plt.plot(points[:, 0], points[:, 1], 'o')
 
     plt.imshow(original_img)
-    # plt.show()
+    plt.show()
 
     return points, tri.simplices
 

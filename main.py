@@ -39,11 +39,19 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        '--vertices',
-        help='Percentage of points to use as vertices',
-        dest='vertices',
+        '--percent',
+        help='Percent of points with highest edge score to select vertices from',
+        dest='percent',
         type=float,
-        default=0.01
+        default=5
+    )
+
+    parser.add_argument(
+        '--vertices',
+        help='Number of vertices for final triangulation',
+        dest='vertices',
+        type=int,
+        default=2500
     )
 
     return parser.parse_args()
@@ -64,7 +72,7 @@ def main() -> None:
         print("Average time per run: " + str((time.time() - start) / 10))
     else:
         # Normal execution
-        res = polygonize(args.data, args.clusters, args.vertices)
+        res = polygonize(args.data, args.clusters, args.vertices, args.percent)
 
     plt.imshow(res)
     plt.show()

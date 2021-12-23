@@ -1,16 +1,18 @@
+import os
+import re
 from typing import Tuple
+
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.lib.npyio import save
 from scipy.spatial import Delaunay
-from skimage import filters, img_as_float32, io, draw, img_as_ubyte
+from skimage import draw, filters, img_as_float32, img_as_ubyte, io
 from skimage.color import rgb2gray, rgba2rgb
 from sklearn.cluster import MiniBatchKMeans
-import os
-import re
 
 
 def save_image(path, im):
+    """Save an image."""
     return io.imsave(path, img_as_ubyte(im.copy()))
 
 
@@ -19,7 +21,7 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     # Initialize kmeans model
     kmeans = MiniBatchKMeans(
         n_clusters=clusters,
-        max_iter=1,
+        max_iter=50,
         batch_size=2560,
         tol=0.0,
         max_no_improvement=5
@@ -28,9 +30,9 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     # Weights
     COLOR_WEIGHT = 1.5
     INTENSITY_WEIGHT = 1.2
-    POSITION_WEIGHT = 1.2
+    POSITION_WEIGHT = 0.8
 
-    s = img.size/120000000
+    s = (img.size**0.5)/2000
 
     # Apply Gaussian blur to image
     img = filters.gaussian(img, sigma=s, multichannel=True)
@@ -52,49 +54,47 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
 
     print("Model fit")
 
-    # res_image = kmeans.cluster_centers_[
-    #   kmeans.labels_][:, 0:3].reshape(img.shape) * color_mean
     res_image = kmeans.cluster_centers_[kmeans.labels_][:, 0:3]
     res_image = np.reshape(res_image, img.shape) * color_mean / COLOR_WEIGHT
 
     # # Plot to subplots
-    f, axes = plt.subplots(1, 2)
-    axes[0].imshow(img * color_mean)
-    axes[1].imshow(res_image)
+    # f, axes = plt.subplots(1, 2)
+    # axes[0].imshow(img * color_mean)
+    # axes[1].imshow(res_image)
 
-    plt.show()
+    # plt.show()
     save_image("results" + os.sep + "kmeans.jpg", res_image)
 
     return res_image
 
 
-def BowyerWatson(oldTriangulation, points, newpoints):
-    triangulation = oldTriangulation.copy()
-    superpoints = np.array([[0, 0], [1000, 0], [0, 1000]])
-    points = np.concat(points, newpoints, superpoints)
-    triangulation.append([-1, -2, -3])
-    for i in range(points.shape[0]):
-        point = points[i]
-        badTriangles = []
-        for triangle in triangulation:
-            pass
-    return triangulation
-
-
-def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: float) -> Tuple[np.ndarray, np.ndarray]:
+def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: int, percent: float) -> Tuple[np.ndarray, np.ndarray]:
     """Performs Delaunay triangulation on a segmented (clustered) image."""
+    s = (clustered_img.size**0.5)/4000
+
+    # Apply Gaussian blur to image
+    clustered_img = filters.gaussian(clustered_img, sigma=s, multichannel=True)
     # Edge detection on res
-    res = filters.sobel(rgb2gray(clustered_img))
-    res[res > 0.1] = 1
-    res[res <= 0.1] = 0
+    res = filters.sobel(clustered_img[:,:,0])
+    res += filters.sobel(clustered_img[:,:,1])
+    res += filters.sobel(clustered_img[:,:,2])
+    res += 1.5*filters.sobel(rgb2gray(clustered_img))
+    #percentile = 100-(((vertices**.8)/res.size)*50000)
+    percentile = 100 - percent
+    cutoff = np.percentile(res, percentile)
+    # cutoff = 0.1
+    res[res > cutoff] = 1
+    res[res <= cutoff] = 0
 
     # Select a random subset of edge points
     j, i = np.nonzero(res)
-    selected_indices = np.random.choice(len(i), int(
-        np.floor(vertices * len(i))), replace=False)
+    print("Randomly sampling from " + str(len(i)) + " edge points")
+    selected_indices = np.random.choice(len(i), min(len(i), (int)(1*vertices)), replace=False)
 
     i = i[selected_indices]
     j = j[selected_indices]
+    # i = np.append(i, np.random.choice(clustered_img.shape[1], (int)(0.05*vertices)))
+    # j = np.append(j, np.random.choice(clustered_img.shape[0], (int)(0.05*vertices)))
 
     # Add image border points
     height = original_img.shape[0]  # j
@@ -143,7 +143,6 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: f
         ],
         axis=0
     )
-
     points = np.concatenate([i[:, None], j[:, None]], axis=1)
 
     # Delaunay triangulation over edge points
@@ -153,7 +152,6 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: f
     plt.plot(points[:, 0], points[:, 1], 'o')
 
     plt.imshow(original_img)
-    plt.show()
 
     return points, tri.simplices
 
@@ -169,7 +167,7 @@ def visualize(img: np.ndarray, points: np.ndarray, simplices: np.ndarray) -> Non
     return img
 
 
-def polygonize(path: str, clusters: int, vertices: float) -> np.ndarray:
+def polygonize(path: str, clusters: int, vertices: int, percent: float) -> np.ndarray:
     """Polygonize a specified image with a specified number of clusters for segmentation."""
     # Convert to RGB
     img = io.imread(path)
@@ -187,11 +185,11 @@ def polygonize(path: str, clusters: int, vertices: float) -> np.ndarray:
         return
 
     # Clustering on original image
+    print("Clustering")
     img = img_as_float32(img)
     res = cluster_img(img, clusters)
-
     # Delaunay triangulation
-    points, simplices = triangulate(img, res, vertices)
+    points, simplices = triangulate(img, res, vertices, percent)
 
     # Visualize
     result = visualize(img, points, simplices)

@@ -1,4 +1,4 @@
-# polygonization
+# Polygonization with K-Means
 In our project, we try to generate low-poly representations of images with modest computational resources while minimizing the amount of information lost from the original image.
 
 One approach for generating low-poly representations with limited computational power is edge detection followed by triangulation on points selected from the edges. However, basic edge detection only encodes information about the magnitude of difference in color between areas of the image, and will often select superfluous feature points.

@@ -9,7 +9,7 @@ from scipy.spatial import Delaunay
 from skimage import draw, filters, img_as_float32, img_as_ubyte, io
 from skimage.color import rgb2gray, rgba2rgb
 from sklearn.cluster import MiniBatchKMeans
-
+from skimage.feature import greycomatrix, greycoprops
 
 def save_image(path, im):
     """Save an image."""
@@ -26,13 +26,48 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
         tol=0.0,
         max_no_improvement=5
     )
+    gray_img = np.mean(img, axis=2)
+    binned_img = (7.999 * gray_img).astype(int)
 
     # Weights
     COLOR_WEIGHT = 1.5
     INTENSITY_WEIGHT = 1.2
     POSITION_WEIGHT = 0.8
+    CONTRAST_WEIGHT = 0.2
+    CORRELATION_WEIGHT = 0.3
+    ASM_WEIGHT = 0.5
 
     s = (img.size**0.5)/2000
+    halfWindow = max((int)(5*s), 2)
+    contrast = np.zeros((img.shape[0]-2*halfWindow, img.shape[1]-2*halfWindow))
+    correlation = np.zeros((img.shape[0]-2*halfWindow, img.shape[1]-2*halfWindow))
+    asm = np.zeros((img.shape[0]-2*halfWindow, img.shape[1]-2*halfWindow))
+
+    print("Calculating textures")
+
+    # calculate glcm textures for each pixel
+    for i in range(img.shape[0] - 2*halfWindow):
+        for j in range(img.shape[1] - 2*halfWindow):
+            patch = binned_img[i:i + 2*halfWindow + 1,j:j + 2*halfWindow + 1]
+            glcm = greycomatrix(patch, [1], [0], levels=8)
+            contrast[i,j] = greycoprops(glcm, 'contrast')
+            correlation[i,j] = greycoprops(glcm, 'correlation')
+            asm[i,j] = greycoprops(glcm, 'ASM')
+    # pad edges
+    contrast = np.pad(contrast, halfWindow, mode="edge")
+    correlation = np.pad(correlation, halfWindow, mode="edge")
+    asm = np.pad(asm, halfWindow, mode="edge")
+    plt.imshow(contrast/np.mean(contrast))
+    plt.show()
+    plt.imshow(correlation/np.mean(correlation))
+    plt.show()
+    plt.imshow(asm/np.mean(asm))
+    plt.show()
+    #normalize and expand dims
+    contrast = np.expand_dims(contrast/np.mean(contrast), 2)
+    correlation = np.expand_dims(correlation/np.mean(correlation), 2)
+    asm = np.expand_dims(asm/np.mean(asm), 2)
+
 
     # Apply Gaussian blur to image
     img = filters.gaussian(img, sigma=s, multichannel=True)
@@ -43,19 +78,18 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
 
     coordinates = np.indices(img.shape[0:2]).transpose((1, 2, 0)).astype(float)
     coordinates /= np.mean(coordinates)
-    intensity = np.expand_dims(np.mean(img, axis=2), 2) / color_mean
-    X = np.concatenate((img * COLOR_WEIGHT, intensity *
-                        INTENSITY_WEIGHT, coordinates * POSITION_WEIGHT), axis=2)
-    X = X.reshape(-1, 6)
+    intensity = np.expand_dims(gray_img, 2) / color_mean
+    X = np.concatenate((img * COLOR_WEIGHT, intensity * INTENSITY_WEIGHT, contrast * CONTRAST_WEIGHT, correlation * CORRELATION_WEIGHT, asm * ASM_WEIGHT, coordinates * POSITION_WEIGHT,), axis=2)
+    X = X.reshape(-1, 9)
 
     print("Beginning to fit model")
 
     kmeans.fit(X)
 
     print("Model fit")
-
-    res_image = kmeans.cluster_centers_[kmeans.labels_][:, 0:3]
-    res_image = np.reshape(res_image, img.shape) * color_mean / COLOR_WEIGHT
+    clustered = np.reshape(kmeans.cluster_centers_[kmeans.labels_][:,0:7], (img.shape[0],img.shape[1],7))
+    res_image = clustered[:, :, 0:3]
+    res_image = res_image * color_mean / COLOR_WEIGHT
 
     # # Plot to subplots
     # f, axes = plt.subplots(1, 2)
@@ -63,27 +97,33 @@ def cluster_img(img: np.ndarray, clusters: int) -> np.ndarray:
     # axes[1].imshow(res_image)
 
     # plt.show()
-    save_image("results" + os.sep + "kmeans.jpg", res_image)
+    save_image("results"       + os.sep + "kmeans.jpg", res_image)
 
-    return res_image
+    return clustered
 
 
 def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: int, percent: float) -> Tuple[np.ndarray, np.ndarray]:
     """Performs Delaunay triangulation on a segmented (clustered) image."""
     s = (clustered_img.size**0.5)/4000
-
+    print(clustered_img.shape)
     # Apply Gaussian blur to image
     clustered_img = filters.gaussian(clustered_img, sigma=s, multichannel=True)
     # Edge detection on res
     res = filters.sobel(clustered_img[:,:,0])
     res += filters.sobel(clustered_img[:,:,1])
     res += filters.sobel(clustered_img[:,:,2])
-    res += 1.5*filters.sobel(rgb2gray(clustered_img))
+    res += filters.sobel(clustered_img[:,:,3])
+    res += filters.sobel(clustered_img[:,:,4])
+    res += filters.sobel(clustered_img[:,:,5])
+    res += filters.sobel(clustered_img[:,:,6])
+    print(np.max(res))
     #percentile = 100-(((vertices**.8)/res.size)*50000)
     percentile = 100 - percent
+    print(percentile)
     cutoff = np.percentile(res, percentile)
+    print(cutoff)
     # cutoff = 0.1
-    res[res > cutoff] = 1
+    print(res[res>cutoff].size)
     res[res <= cutoff] = 0
 
     # Select a random subset of edge points
@@ -156,18 +196,22 @@ def triangulate(original_img: np.ndarray, clustered_img: np.ndarray, vertices: i
     return points, tri.simplices
 
 
-def visualize(img: np.ndarray, points: np.ndarray, simplices: np.ndarray) -> None:
+def visualize(img: np.ndarray, points: np.ndarray, simplices: np.ndarray, average: bool) -> None:
     """Perform shading of triangulation and visualize results."""
     for i in range(len(simplices)):
         triangle = points[simplices[i]]
         pixels = img[draw.polygon(triangle[:, 1], triangle[:, 0])]
-        color = np.average(pixels, 0)
+        if (average):
+            color = np.average(pixels, 0)
+        else:
+            centroid = np.average(triangle, axis=0).astype(int)
+            color = img[centroid[1], centroid[0]]
         img[draw.polygon(triangle[:, 1], triangle[:, 0])] = color
 
     return img
 
 
-def polygonize(path: str, clusters: int, vertices: int, percent: float) -> np.ndarray:
+def polygonize(path: str, clusters: int, vertices: int, percent: float, average: bool) -> np.ndarray:
     """Polygonize a specified image with a specified number of clusters for segmentation."""
     # Convert to RGB
     img = io.imread(path)
@@ -192,7 +236,7 @@ def polygonize(path: str, clusters: int, vertices: int, percent: float) -> np.nd
     points, simplices = triangulate(img, res, vertices, percent)
 
     # Visualize
-    result = visualize(img, points, simplices)
+    result = visualize(img, points, simplices, average)
     save_image("results" + os.sep + re.split(('/|\\\\'), path)[-1], result)
 
     return result

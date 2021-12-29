@@ -54,6 +54,15 @@ def parse_args() -> argparse.Namespace:
         default=2500
     )
 
+    parser.add_argument(
+        '--average',
+        help='Whether or not to take average color',
+        dest='average',
+        type=bool,
+        default=True
+    )
+    parser.add_argument('--sample', dest='average', action='store_false')
+
     return parser.parse_args()
 
 
@@ -72,7 +81,7 @@ def main() -> None:
         print("Average time per run: " + str((time.time() - start) / 10))
     else:
         # Normal execution
-        res = polygonize(args.data, args.clusters, args.vertices, args.percent)
+        res = polygonize(args.data, args.clusters, args.vertices, args.percent, args.average)
 
     plt.imshow(res)
     plt.show()

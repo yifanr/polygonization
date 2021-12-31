@@ -16,4 +16,10 @@ Methodology:
 Step one: We use the color, intensity, position in image, and GLCM contrast, asm, and correlation as 9 values for each pixel. We then use K-Means to cluster these pixels in the corresponding 9-dimensional space. After clustering this way, we color each pixel with their cluster's centroid's color to arrive at an image like this:
 
 
-![Figure 1](results/boats_kmeans.jpg)
+![Figure 2](results/boats_kmeans.jpg)
+
+Step two: We use Sobel filter edge detection on each of the 9 layers of the K-Means result to find points along the boundaries of clusters to identify relevant edge points to use as vertices. We take the n percentile of edge values where n can be specified by the user. 
+
+Step three: We apply Delaunay triangulation on a random sample of m edge points from the top percentile we obtained in the previous step to arrive at the final image:
+
+![Figure 3](results/boats.jpg)

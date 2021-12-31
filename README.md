@@ -9,9 +9,13 @@ If our method is successful, it will allow everyone--especially artists or indie
 
 Here are some example results:
 
-![Figure 1](results/examples.jpg)
+![Figure 0](results/examples.jpg)
 
 Methodology:
+
+Given an example image such as the following:
+
+![Figure 1](data/boats.jpg)
 
 Step one: We use the color, intensity, position in image, and GLCM contrast, asm, and correlation as 9 values for each pixel. We then use K-Means to cluster these pixels in the corresponding 9-dimensional space. After clustering this way, we color each pixel with their cluster's centroid's color to arrive at an image like this:
 

@@ -20,6 +20,8 @@ Step one: We use the color, intensity, position in image, and GLCM contrast, asm
 
 Step two: We use Sobel filter edge detection on each of the 9 layers of the K-Means result to find points along the boundaries of clusters to identify relevant edge points to use as vertices. We take the n percentile of edge values where n can be specified by the user. 
 
-Step three: We apply Delaunay triangulation on a random sample of m edge points from the top percentile we obtained in the previous step to arrive at the final image:
+Step three: We apply Delaunay triangulation on a random sample of m edge points from the top percentile we obtained in the previous step. After we have created the triangulation, we color each triangle either with the median color or the mean color of each triangle (also up to the user):
 
 ![Figure 3](results/boats.jpg)
+
+Future Work: The texture detection is still work in progress since it is quite slow, calculating the texture for each pixel individually from the matrix of pixels around it. We would also like to experiment with more advanced image segmentation perhaps using a Deep-Learning model as many state-of-the-art segmentation techniques use. Making a front-end aspect would also be great to make our work more accessible to others. Related to this, we are interested in adding functionality where it is possible to decrease detail in user-selected areas to have the triangulation results be more customizable.
